@@ -8,11 +8,11 @@ Create Date: 2024-07-24 11:37:48.532933
 
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
 import sqlmodel
-from langflow.utils import migration
+from alembic import op
 
+from langflow.utils import migration
 
 # revision identifiers, used by Alembic.
 revision: str = "90be8e2ed91e"

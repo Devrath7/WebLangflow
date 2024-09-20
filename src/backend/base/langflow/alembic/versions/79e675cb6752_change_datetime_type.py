@@ -10,9 +10,9 @@ from typing import Sequence, Union
 
 import sqlalchemy as sa
 from alembic import op
+from loguru import logger
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.engine.reflection import Inspector
-from loguru import logger
 
 # revision identifiers, used by Alembic.
 revision: str = "79e675cb6752"
