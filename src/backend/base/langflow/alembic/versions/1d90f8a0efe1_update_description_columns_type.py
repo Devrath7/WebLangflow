@@ -10,8 +10,9 @@ from typing import Sequence, Union
 
 import sqlalchemy as sa
 from alembic import op
-from langflow.utils import migration
 from sqlalchemy.engine.reflection import Inspector
+
+from langflow.utils import migration
 
 # revision identifiers, used by Alembic.
 revision: str = "4522eb831f5c"

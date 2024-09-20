@@ -1,9 +1,11 @@
-from enum import Enum
-from typing import GenericAlias  # type: ignore
-from typing import _GenericAlias  # type: ignore
-from typing import _UnionGenericAlias  # type: ignore
-from typing import Any
 from collections.abc import Callable
+from enum import Enum
+from typing import (
+    Any,
+    GenericAlias,  # type: ignore
+    _GenericAlias,  # type: ignore
+    _UnionGenericAlias,  # type: ignore
+)
 
 from pydantic import (
     BaseModel,
