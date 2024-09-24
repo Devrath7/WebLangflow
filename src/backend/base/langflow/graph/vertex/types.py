@@ -1,7 +1,7 @@
 import asyncio
 import json
-from typing import TYPE_CHECKING, Any, cast
 from collections.abc import AsyncIterator, Generator, Iterator
+from typing import TYPE_CHECKING, Any, cast
 
 import yaml
 from langchain_core.messages import AIMessage, AIMessageChunk
@@ -201,6 +201,7 @@ class InterfaceVertex(ComponentVertex):
         super().__init__(data, graph=graph)
         self._added_message = None
         self.steps = [self._build, self._run]
+        self.is_interface_component = True
 
     def build_stream_url(self):
         return f"/api/v1/build/{self.graph.flow_id}/{self.id}/stream"
