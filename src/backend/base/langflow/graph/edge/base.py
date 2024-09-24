@@ -204,6 +204,8 @@ class CycleEdge(Edge):
         self.is_fulfilled = False  # Whether the contract has been fulfilled.
         self.result: Any = None
         self.is_cycle = True
+        source._has_cycle_edges = True
+        target._has_cycle_edges = True
 
     async def honor(self, source: "Vertex", target: "Vertex") -> None:
         """
@@ -242,3 +244,8 @@ class CycleEdge(Edge):
             if target.params.get("message") == "":
                 return self.result
         return self.result
+
+    def __repr__(self) -> str:
+        str_repr = super().__repr__()
+        # Add a symbol to show this is a cycle edge
+        return f"{str_repr} 🔄"
