@@ -25,6 +25,7 @@ class ChatComponent(Component):
             raise ValueError("Only one message can be stored at a time.")
         stored_message = messages[0]
         if hasattr(self, "_event_manager") and self._event_manager and stored_message.id:
+            self._event_manager.on_message(data=stored_message.data)
             if not isinstance(message.text, str):
                 complete_message = self._stream_message(message, stored_message.id)
                 message_table = update_message(message_id=stored_message.id, message=dict(text=complete_message))

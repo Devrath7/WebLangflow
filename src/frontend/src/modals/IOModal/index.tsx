@@ -3,7 +3,9 @@ import {
   useGetMessagesQuery,
 } from "@/controllers/API/queries/messages";
 import { useUtilityStore } from "@/stores/utilityStore";
+import { someFlowTemplateFields } from "@/utils/reactflowUtils";
 import { useEffect, useState } from "react";
+import ShortUniqueId from "short-unique-id";
 import AccordionComponent from "../../components/accordionComponent";
 import IconComponent from "../../components/genericIconComponent";
 import ShadTooltip from "../../components/shadTooltipComponent";
@@ -59,10 +61,12 @@ export default function IOModal({
     inputs.length > 0 ? 1 : outputs.length > 0 ? 2 : 0,
   );
   const setErrorData = useAlertStore((state) => state.setErrorData);
+  const setNoticeData = useAlertStore((state) => state.setNoticeData);
   const setSuccessData = useAlertStore((state) => state.setSuccessData);
   const deleteSession = useMessagesStore((state) => state.deleteSession);
 
   const { mutate: deleteSessionFunction } = useDeleteMessages();
+  const [visibleSessions, setvisibleSessions] = useState<string[]>([]);
 
   function handleDeleteSession(session_id: string) {
     deleteSessionFunction(
@@ -114,14 +118,29 @@ export default function IOModal({
   const [sessions, setSessions] = useState<string[]>([]);
   const messages = useMessagesStore((state) => state.messages);
   const flowPool = useFlowStore((state) => state.flowPool);
+  const [sessionId, setSessionId] = useState<string>(currentFlowId);
+  const [SessionInFlow, setSessionInFlow] = useState<boolean>(false);
 
-  const { refetch } = useGetMessagesQuery(
+  useGetMessagesQuery(
     {
       mode: "union",
       id: currentFlowId,
     },
     { enabled: open },
   );
+
+  useEffect(() => {
+    const hasSectionInFlow = someFlowTemplateFields(
+      { nodes: allNodes },
+      (Field) =>
+        Field.display_name?.toLocaleLowerCase() === "session id" && Field.value,
+    );
+    setSessionInFlow(hasSectionInFlow);
+    //if there is no session in the flow components we should not allow the user to see multiple sessions at a time
+    if (!hasSectionInFlow && visibleSessions.length > 1) {
+      setvisibleSessions([]);
+    }
+  }, [allNodes]);
 
   async function sendMessage({
     repeat = 1,
@@ -134,19 +153,31 @@ export default function IOModal({
     setIsBuilding(true);
     setLockChat(true);
     setChatValue("");
+    const runSession = visibleSessions.length > 1 ? undefined : sessionId;
+    // check for multiple sessions view without session id in flow
+    if (!SessionInFlow && !runSession) {
+      setNoticeData({
+        title:
+          "Multiple sessions are supported only when a session id is set inside components, otherwise only the default session will be used.",
+      });
+      if (sessions.includes(currentFlowId)) {
+        setvisibleSessions([currentFlowId]);
+      }
+    }
     for (let i = 0; i < repeat; i++) {
       await buildFlow({
         input_value: chatValue,
         startNodeId: chatInput?.id,
         files: files,
         silent: true,
+        session: runSession,
         setLockChat,
       }).catch((err) => {
         console.error(err);
         setLockChat(false);
       });
     }
-    refetch();
+    // refetch();
     setLockChat(false);
     if (chatInput) {
       setNode(chatInput.id, (node: NodeType) => {
@@ -169,9 +200,27 @@ export default function IOModal({
       .forEach((row) => {
         sessions.add(row.session_id);
       });
-    setSessions(Array.from(sessions));
-    sessions;
+    setSessions((prev) => {
+      if (prev.length < Array.from(sessions).length) {
+        // set the new session as visible
+        setvisibleSessions((prev) => [
+          ...prev,
+          Array.from(sessions)[Array.from(sessions).length - 1],
+        ]);
+      }
+      return Array.from(sessions);
+    });
   }, [messages]);
+
+  useEffect(() => {
+    if (visibleSessions.length === 0 && sessions.length > 0) {
+      setSessionId(
+        `Session ${new Date().toLocaleString("en-US", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", hour12: true, second: "2-digit" })}`,
+      );
+    } else if (visibleSessions.length === 1) {
+      setSessionId(visibleSessions[0]);
+    }
+  }, [visibleSessions]);
 
   const setPlaygroundScrollBehaves = useUtilityStore(
     (state) => state.setPlaygroundScrollBehaves,
@@ -368,17 +417,7 @@ export default function IOModal({
                 <TabsContent value={"0"} className="api-modal-tabs-content">
                   {sessions.map((session, index) => {
                     return (
-                      <div
-                        key={index}
-                        className="file-component-accordion-div cursor-pointer"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setSelectedViewField({
-                            id: session,
-                            type: "Session",
-                          });
-                        }}
-                      >
+                      <div key={index} className="file-component-accordion-div">
                         <div className="flex w-full items-center justify-between gap-2 overflow-hidden border-b px-2 py-3.5 align-middle">
                           <ShadTooltip styleClasses="z-50" content={session}>
                             <div className="flex min-w-0">
@@ -394,6 +433,60 @@ export default function IOModal({
                             </div>
                           </ShadTooltip>
                           <div className="flex shrink-0 items-center justify-center gap-2 align-middle">
+                            <Button
+                              unstyled
+                              size="icon"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setvisibleSessions((prev) =>
+                                  prev.includes(session)
+                                    ? prev.filter((item) => item !== session)
+                                    : SessionInFlow
+                                      ? [...prev, session]
+                                      : [session],
+                                );
+                              }}
+                            >
+                              <ShadTooltip
+                                styleClasses="z-50"
+                                content={"Toggle Visibility"}
+                              >
+                                <div>
+                                  <IconComponent
+                                    name={
+                                      !visibleSessions.includes(session)
+                                        ? "EyeOff"
+                                        : "Eye"
+                                    }
+                                    className="h-4 w-4"
+                                  ></IconComponent>
+                                </div>
+                              </ShadTooltip>
+                            </Button>
+                            <Button
+                              unstyled
+                              size="icon"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setSelectedViewField({
+                                  id: session,
+                                  type: "Session",
+                                });
+                              }}
+                            >
+                              <ShadTooltip
+                                styleClasses="z-50"
+                                content={"Table View"}
+                              >
+                                <div>
+                                  <IconComponent
+                                    name="Table"
+                                    className="h-4 w-4"
+                                  ></IconComponent>
+                                </div>
+                              </ShadTooltip>
+                            </Button>
                             <Button
                               unstyled
                               size="icon"
@@ -417,31 +510,6 @@ export default function IOModal({
                                 </div>
                               </ShadTooltip>
                             </Button>
-                            {/* <div>
-                              <ShadTooltip
-                                styleClasses="z-50"
-                                content={
-                                  flow_sessions.some(
-                                    (f_session) =>
-                                      f_session?.session_id === session,
-                                  )
-                                    ? "Active Session"
-                                    : "Inactive Session"
-                                }
-                              >
-                                <div
-                                  className={cn(
-                                    "h-2 w-2 rounded-full",
-                                    flow_sessions.some(
-                                      (f_session) =>
-                                        f_session?.session_id === session,
-                                    )
-                                      ? "bg-status-green"
-                                      : "bg-slate-500",
-                                  )}
-                                ></div>
-                              </ShadTooltip>
-                            </div> */}
                           </div>
                         </div>
                       </div>
@@ -451,6 +519,17 @@ export default function IOModal({
                     <span className="text-sm text-muted-foreground">
                       No memories available.
                     </span>
+                  )}
+                  {sessions.length > 0 && (
+                    <div className="pt-6">
+                      <Button
+                        onClick={(_) => {
+                          setvisibleSessions([]);
+                        }}
+                      >
+                        Start fresh
+                      </Button>
+                    </div>
                   )}
                 </TabsContent>
               </Tabs>
@@ -517,11 +596,13 @@ export default function IOModal({
               >
                 {haveChat ? (
                   <ChatView
+                    focusChat={sessionId}
                     sendMessage={sendMessage}
                     chatValue={chatValue}
                     setChatValue={setChatValue}
                     lockChat={lockChat}
                     setLockChat={setLockChat}
+                    visibleSessions={visibleSessions}
                   />
                 ) : (
                   <span className="flex h-full w-full items-center justify-center font-thin text-muted-foreground">

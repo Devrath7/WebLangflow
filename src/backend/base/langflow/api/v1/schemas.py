@@ -267,6 +267,13 @@ class ResultDataResponse(BaseModel):
             return {key: serialize_field(val) for key, val in v.items()}
         return serialize_field(v)
 
+    @field_serializer("results")
+    @classmethod
+    def serialize_results(cls, v):
+        if isinstance(v, dict):
+            return {key: serialize_field(val) for key, val in v.items()}
+        return serialize_field(v)
+
 
 class VertexBuildResponse(BaseModel):
     id: str | None = None
@@ -289,6 +296,7 @@ class VerticesBuiltResponse(BaseModel):
 class InputValueRequest(BaseModel):
     components: list[str] | None = []
     input_value: str | None = None
+    session: str | None = None
     type: InputType | None = Field(
         "any",
         description="Defines on which components the input value should be applied. 'any' applies to all input components.",
@@ -301,9 +309,12 @@ class InputValueRequest(BaseModel):
                 {
                     "components": ["components_id", "Component Name"],
                     "input_value": "input_value",
+                    "session": "session_id",
                 },
                 {"components": ["Component Name"], "input_value": "input_value"},
                 {"input_value": "input_value"},
+                {"components": ["Component Name"], "input_value": "input_value", "session": "session_id"},
+                {"input_value": "input_value", "session": "session_id"},
                 {"type": "chat", "input_value": "input_value"},
                 {"type": "json", "input_value": '{"key": "value"}'},
             ]
